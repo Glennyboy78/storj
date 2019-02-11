@@ -40,6 +40,7 @@ require (
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.0.0 // indirect
 	github.com/go-redis/redis v6.14.1+incompatible
+	github.com/go-sql-driver/mysql v1.4.0
 	github.com/gogo/protobuf v1.2.0
 	github.com/golang-migrate/migrate/v3 v3.5.2
 	github.com/golang/mock v1.2.0

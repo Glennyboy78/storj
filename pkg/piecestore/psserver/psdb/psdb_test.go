@@ -22,7 +22,7 @@ import (
 	"storj.io/storj/pkg/pb"
 )
 
-const concurrency = 1
+const concurrency = 10
 
 func newDB(t testing.TB, id string) (*DB, func()) {
 	tmpdir, err := ioutil.TempDir("", "storj-psdb-"+id)
@@ -171,7 +171,7 @@ func TestHappyPath(t *testing.T) {
 
 	bwtests := []BWUSAGE{
 		// size is total size stored
-		{size: 1111, timenow: time.Now()},
+		{size: 11110, timenow: time.Now()},
 	}
 
 	t.Run("Bandwidth Allocation", func(t *testing.T) {

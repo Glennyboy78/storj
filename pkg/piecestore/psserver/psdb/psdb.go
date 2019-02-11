@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/gogo/protobuf/proto"
 	_ "github.com/mattn/go-sqlite3" // register sqlite to sql
 	"github.com/zeebo/errs"
@@ -59,6 +60,22 @@ func Open(DBPath string) (db *DB, err error) {
 		return nil, utils.CombineErrors(err, db.DB.Close())
 	}
 
+	if _, err := db.DB.Exec("DESCRIBE bandwidth_agreements"); err != nil {
+		// SQL error 1146 is "table does not exist"
+		if mErr, ok := err.(*mysql.MySQLError); ok && mErr.Number == 1146 {
+			return nil, utils.CombineErrors(err, db.DB.Close())
+		}
+
+		// check for a column, to see if it needs ugrade. This is for ** TESTING PURPOSE ONLY **
+		_, err = db.DB.Query("SELECT uplink FROM bandwidth_agreements")
+		if err != nil {
+			// needs migration
+			err = db.MigrateBandwidthAllocDB()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return db, nil
 }
 
@@ -92,7 +109,9 @@ func (db *DB) init() (err error) {
 		return err
 	}
 
-	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS `bandwidth_agreements` (`satellite` BLOB, `uplink` BLOB, `serialnum` TEXT, `total` INT(10), `maxsize` INT(10), `createdunixsec` INT(10), `expirationunixsec` INT(10), `action` TEXT, `daystartdateunixsec` INT(10), `agreement` BLOB, `signature` BLOB);")
+	// todo: ** TESTING **
+	//_, err = tx.Exec("CREATE TABLE IF NOT EXISTS `bandwidth_agreements` (`satellite` BLOB, , `agreement` BLOB, `signature` BLOB, `uplink` BLOB, `serialnum` TEXT, `total` INT(10), `maxsize` INT(10), `createdunixsec` INT(10), `expirationunixsec` INT(10), `action` TEXT, `daystartdateunixsec` INT(10));")
+	_, err = tx.Exec("CREATE TABLE IF NOT EXISTS `bandwidth_agreements` (`satellite` BLOB, `agreement` BLOB, `signature` BLOB);")
 	if err != nil {
 		return err
 	}
@@ -160,6 +179,85 @@ func (db *DB) DeleteExpired(ctx context.Context) (expired []string, err error) {
 	}
 
 	return expired, tx.Commit()
+}
+
+// MigrateBandwidthAllocDB migrate BandwidthAllocation table to new version
+func (db *DB) MigrateBandwidthAllocDB() (err error) {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.Exec(`ALTER TABLE bandwidth_agreements ADD COLUMN uplink BLOB; 
+						  ALTER TABLE bandwidth_agreements ADD COLUMN serialnum BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN total BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN maxsize BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN createdunixsec BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN expirationunixsec BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN action BLOB;
+						  ALTER TABLE bandwidth_agreements ADD COLUMN daystartdateunixsec BLOB`)
+	if err != nil {
+		return errors.New("migration error")
+	}
+
+	var count int
+	row := tx.QueryRow("SELECT COUNT(*) as count FROM bandwidth_agreements")
+	err = row.Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	//start migration/upgrade
+	rows, err := tx.Query(`SELECT * FROM bandwidth_agreements ORDER BY satellite`)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			zap.S().Errorf("failed to close rows when selecting from bandwidth_agreements: %+v", closeErr)
+		}
+	}()
+
+	for rows.Next() {
+		rbaBytes := []byte{}
+		agreement := &Agreement{}
+		var satellite []byte
+		err := rows.Scan(&satellite, &rbaBytes, &agreement.Signature)
+		if err != nil {
+			return err
+		}
+		err = proto.Unmarshal(rbaBytes, &agreement.Agreement)
+		if err != nil {
+			return err
+		}
+		t := time.Now()
+		rba := &agreement.Agreement
+		daystartdateunixsec := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()).Unix()
+		_, err = tx.Exec(`UPDATE bandwidth_agreements (uplink, serialnum, total, maxsize, createdunixsec, expirationunixsec, action, daystartdateunixsec) VALUES (?, ?, ?, ?, ?, ?, ?, ?) WHERE signature = ?`,
+			rba.PayerAllocation.UplinkId.Bytes(), rba.PayerAllocation.SerialNumber,
+			rba.Total, rba.PayerAllocation.MaxSize, rba.PayerAllocation.CreatedUnixSec,
+			rba.PayerAllocation.ExpirationUnixSec, rba.PayerAllocation.GetAction().String(),
+			daystartdateunixsec, rba.GetSignature())
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // WriteBandwidthAllocToDB inserts bandwidth agreement into DB
@@ -248,7 +346,7 @@ func (db *DB) GetBandwidthAllocations() (map[storj.NodeID][]*Agreement, error) {
 		var serialnum string
 		var total, maxsize, createdUnixSec, expirationUnixSec, daystartdateUnixSec int64
 		var action string
-		err := rows.Scan(&satellite, &uplink, &serialnum, &total, &maxsize, &createdUnixSec, &expirationUnixSec, &action, &daystartdateUnixSec, &rbaBytes, &agreement.Signature)
+		err := rows.Scan(&satellite, &rbaBytes, &agreement.Signature, &uplink, &serialnum, &total, &maxsize, &createdUnixSec, &expirationUnixSec, &action, &daystartdateUnixSec)
 		if err != nil {
 			return agreements, err
 		}
