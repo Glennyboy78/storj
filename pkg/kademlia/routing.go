@@ -180,7 +180,10 @@ func (rt *RoutingTable) FindNear(id storj.NodeID, limit int) (nodes []*pb.Node, 
 	if err != nil {
 		return nodes, RoutingErr.New("could not get nodes %s", err)
 	}
-
+	for _, v := range nodes {
+		fmt.Println(v.Id)
+		fmt.Println(v.Address)
+	}
 	return nodes, nil
 }
 
