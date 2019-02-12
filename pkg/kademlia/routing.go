@@ -180,10 +180,7 @@ func (rt *RoutingTable) FindNear(id storj.NodeID, limit int) (nodes []*pb.Node, 
 	if err != nil {
 		return nodes, RoutingErr.New("could not get nodes %s", err)
 	}
-	for _, v := range nodes {
-		fmt.Println(v.Id)
-		fmt.Println(v.Address)
-	}
+
 	return nodes, nil
 }
 
@@ -234,14 +231,6 @@ func (rt *RoutingTable) ConnectionSuccess(node *pb.Node) error {
 	if err != nil {
 		return RoutingErr.New("could not add node %s", err)
 	}
-	x, _ := storj.NodeIDFromString("1Ba3mm8Ra8JYYebeZ9p7zw1ayorDbeD1euwxhgzSLsncRPwZDY")
-
-	if node.Id == x {
-		fmt.Println("----")
-		q, err := rt.nodeBucketDB.Get(storage.Key(node.Id.Bytes()))
-		fmt.Println(err)
-		fmt.Println(q)
-	}
 
 	return nil
 }
@@ -250,7 +239,7 @@ func (rt *RoutingTable) ConnectionSuccess(node *pb.Node) error {
 // a connection fails for the node on the network
 func (rt *RoutingTable) ConnectionFailed(node *pb.Node) error {
 	node.Type.DPanicOnInvalid("connection failed")
-	
+
 	err := rt.removeNode(node)
 	if err != nil {
 		return RoutingErr.New("could not remove node %s", err)
