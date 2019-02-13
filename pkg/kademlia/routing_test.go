@@ -88,7 +88,7 @@ func TestGetBucket(t *testing.T) {
 }
 
 func TestKademliaFindNear(t *testing.T) {
-	rt := createRoutingTable(teststorj.NodeIDFromString("AA"))
+	rt := createRoutingTable(teststorj.NodeIDFromString("AB"))
 	node1 := teststorj.MockNode("AA")
 	node2 := teststorj.MockNode("BB")
 	node3 := teststorj.MockNode("CC")
