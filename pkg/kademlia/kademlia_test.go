@@ -139,18 +139,18 @@ func TestBootstrap(t *testing.T) {
 
 	bn, s, clean := testNode(t, []pb.Node{})
 	defer clean()
-	defer s.Stop()
+	//defer s.Stop()
 
 	n1, s1, clean1 := testNode(t, []pb.Node{bn.routingTable.self})
 	defer clean1()
-	defer s1.Stop()
+	//defer s1.Stop()
 
 	err := n1.Bootstrap(ctx)
 	assert.NoError(t, err)
 
 	n2, s2, clean2 := testNode(t, []pb.Node{bn.routingTable.self})
 	defer clean2()
-	defer s2.Stop()
+	//defer s2.Stop()
 
 	err = n2.Bootstrap(ctx)
 	assert.NoError(t, err)
@@ -158,6 +158,9 @@ func TestBootstrap(t *testing.T) {
 	nodeIDs, err := n2.routingTable.nodeBucketDB.List(nil, 0)
 	assert.NoError(t, err)
 	assert.Len(t, nodeIDs, 3)
+	s.GracefulStop()
+	s1.GracefulStop()
+	s2.GracefulStop()
 }
 
 func testNode(t *testing.T, bn []pb.Node) (*Kademlia, *grpc.Server, func()) {
@@ -185,7 +188,9 @@ func testNode(t *testing.T, bn []pb.Node) (*Kademlia, *grpc.Server, func()) {
 	grpcServer := grpc.NewServer(identOpt)
 
 	pb.RegisterNodesServer(grpcServer, s)
-	go func() { assert.NoError(t, grpcServer.Serve(lis)) }()
+	go func() {
+		assert.NoError(t, grpcServer.Serve(lis))
+	}()
 
 	return k, grpcServer, func() {
 		defer cleanup()
@@ -198,7 +203,7 @@ func TestRefresh(t *testing.T) {
 	defer ctx.Cleanup()
 	k, s, clean := testNode(t, []pb.Node{})
 	defer clean()
-	defer s.Stop()
+	//defer s.Stop()
 	//turn back time for only bucket
 	rt := k.routingTable
 	now := time.Now().UTC()
@@ -217,6 +222,7 @@ func TestRefresh(t *testing.T) {
 	ts2, err := rt.GetBucketTimestamp(bID[:])
 	assert.NoError(t, err)
 	assert.True(t, ts1.Equal(ts2))
+	s.GracefulStop()
 }
 
 func TestFindNear(t *testing.T) {
