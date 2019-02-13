@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/zeebo/errs"
 	"go.uber.org/zap/zaptest"
 	"golang.org/x/sync/errgroup"
@@ -22,7 +23,7 @@ func TestDialer(t *testing.T) {
 	testplanet.Run(t, testplanet.Config{
 		SatelliteCount: 1, StorageNodeCount: 4, UplinkCount: 3,
 	}, func(t *testing.T, ctx *testcontext.Context, planet *testplanet.Planet) {
-		expectedKademliaEntries := 1 + len(planet.Satellites) + len(planet.StorageNodes)
+		expectedKademliaEntries := len(planet.Satellites) + len(planet.StorageNodes)
 
 		// TODO: also use satellites
 		peers := planet.StorageNodes
@@ -60,23 +61,25 @@ func TestDialer(t *testing.T) {
 				peer := peer
 				group.Go(func() error {
 					for _, target := range peers {
-						errTag := fmt.Errorf("lookup peer:%s target:%s", peer.ID(), target.ID())
+						//errTag := fmt.Errorf("lookup peer:%s target:%s", peer.ID(), target.ID())
 						peer.Local().Type.DPanicOnInvalid("test client peer")
 						target.Local().Type.DPanicOnInvalid("test client target")
 
 						results, err := dialer.Lookup(ctx, self.Local(), peer.Local(), target.Local())
-						if err != nil {
-							return errs.Combine(errTag, err)
-						}
+						//if err != nil {
+						require.NoError(t, err)
+						// 	return errs.Combine(errTag, err)
+						// }
 
 						if containsResult(results, target.ID()) {
 							continue
 						}
 
 						// with small network we expect to return everything
-						if len(results) != expectedKademliaEntries {
-							return errs.Combine(errTag, fmt.Errorf("expected %d got %d: %s", expectedKademliaEntries, len(results), pb.NodesToIDs(results)))
-						}
+						// if len(results) != expectedKademliaEntries {
+						// 	return errs.Combine(errTag, fmt.Errorf("expected %d got %d: %s", expectedKademliaEntries, len(results), pb.NodesToIDs(results)))
+						// }
+						require.Equal(t, len(results), expectedKademliaEntries)
 
 						return nil
 					}
@@ -112,9 +115,10 @@ func TestDialer(t *testing.T) {
 						}
 
 						// with small network we expect to return everything
-						if len(results) != expectedKademliaEntries {
-							return errs.Combine(errTag, fmt.Errorf("expected %d got %d: %s", expectedKademliaEntries, len(results), pb.NodesToIDs(results)))
-						}
+						// if len(results) != expectedKademliaEntries {
+						// 	return errs.Combine(errTag, fmt.Errorf("expected %d got %d: %s", expectedKademliaEntries, len(results), pb.NodesToIDs(results)))
+						// }
+						require.Equal(t, len(results), expectedKademliaEntries)
 
 						return nil
 					})
