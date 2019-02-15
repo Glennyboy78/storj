@@ -35,10 +35,12 @@ func (s *Server) Store(reqStream pb.PieceStoreRoutes_StoreServer) (err error) {
 		return StoreError.New("error receiving Piece metadata")
 	}
 
-	authorization := recv.GetAuthorization()
-	if err := s.verifier(authorization); err != nil {
-		return ServerError.Wrap(err)
-	}
+	rba := recv.GetBandwidthAllocation()
+	// if err := s.verifier(authorization); err != nil {
+	// 	return ServerError.Wrap(err)
+	// }
+
+	pba := rba.PayerAllocation
 
 	pd := recv.GetPieceData()
 	if pd == nil {
@@ -51,7 +53,7 @@ func (s *Server) Store(reqStream pb.PieceStoreRoutes_StoreServer) (err error) {
 		return StoreError.New("piece ID not specified")
 	}
 
-	id, err := getNamespacedPieceID([]byte(pd.GetId()), getNamespace(authorization))
+	id, err := getNamespacedPieceID([]byte(pd.GetId()), getNamespace(pba.SatelliteId))
 	if err != nil {
 		return err
 	}

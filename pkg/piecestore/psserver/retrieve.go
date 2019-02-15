@@ -35,17 +35,19 @@ func (s *Server) Retrieve(stream pb.PieceStoreRoutes_RetrieveServer) (err error)
 		return RetrieveError.New("error receiving piece data")
 	}
 
-	authorization := recv.GetAuthorization()
-	if err := s.verifier(authorization); err != nil {
-		return ServerError.Wrap(err)
-	}
+	rba := recv.GetBandwidthAllocation()
+	// if err := s.verifier(authorization); err != nil {
+	// 	return ServerError.Wrap(err)
+	// }
+
+	pba := rba.PayerAllocation
 
 	pd := recv.GetPieceData()
 	if pd == nil {
 		return RetrieveError.New("PieceStore message is nil")
 	}
 
-	id, err := getNamespacedPieceID([]byte(pd.GetId()), getNamespace(authorization))
+	id, err := getNamespacedPieceID([]byte(pd.GetId()), getNamespace(pba.SatelliteId))
 	if err != nil {
 		return err
 	}

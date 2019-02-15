@@ -58,7 +58,6 @@ message PieceStore {
 
   RenterBandwidthAllocation bandwidth_allocation = 1;
   PieceData piece_data = 2;
-  SignedMessage authorization = 3;
 }
 
 message PieceId {
@@ -84,7 +83,6 @@ message PieceRetrieval {
 
   RenterBandwidthAllocation bandwidth_allocation = 1;
   PieceData piece_data = 2;
-  SignedMessage authorization = 3;
 }
 
 message PieceRetrievalStream {

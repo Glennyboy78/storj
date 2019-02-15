@@ -37,7 +37,7 @@ message RedundancyScheme {
   int32 repair_threshold = 4;  // amount of pieces we need to drop to before triggering repair
   int32 success_threshold = 5; // amount of pieces we need to store to call it a success
 
-  int32 erasure_share_size = 6;
+  int32 erasure_share_size = 7;
 }
 
 message RemotePiece {

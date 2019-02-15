@@ -163,12 +163,14 @@ func (s *Server) Stop(ctx context.Context) error {
 func (s *Server) Piece(ctx context.Context, in *pb.PieceId) (*pb.PieceSummary, error) {
 	s.log.Debug("Getting Meta", zap.String("Piece ID", in.GetId()))
 
-	authorization := in.GetAuthorization()
-	if err := s.verifier(authorization); err != nil {
-		return nil, ServerError.Wrap(err)
-	}
+	// authorization := in.GetAuthorization()
+	// if err := s.verifier(authorization); err != nil {
+	// 	return nil, ServerError.Wrap(err)
+	// }
 
-	id, err := getNamespacedPieceID([]byte(in.GetId()), getNamespace(authorization))
+	sateliteID := storj.NodeID{}
+
+	id, err := getNamespacedPieceID([]byte(in.GetId()), getNamespace(sateliteID))
 	if err != nil {
 		return nil, err
 	}
@@ -261,11 +263,13 @@ func (s *Server) Dashboard(in *pb.DashboardReq, stream pb.PieceStoreRoutes_Dashb
 // Delete -- Delete data by Id from piecestore
 func (s *Server) Delete(ctx context.Context, in *pb.PieceDelete) (*pb.PieceDeleteSummary, error) {
 	s.log.Debug("Deleting", zap.String("Piece ID", fmt.Sprint(in.GetId())))
-	authorization := in.GetAuthorization()
-	if err := s.verifier(authorization); err != nil {
-		return nil, ServerError.Wrap(err)
-	}
-	id, err := getNamespacedPieceID([]byte(in.GetId()), getNamespace(authorization))
+	// authorization := in.GetAuthorization()
+	// if err := s.verifier(authorization); err != nil {
+	// 	return nil, ServerError.Wrap(err)
+	// }
+
+	sateliteID := storj.NodeID{}
+	id, err := getNamespacedPieceID([]byte(in.GetId()), getNamespace(sateliteID))
 	if err != nil {
 		return nil, err
 	}
@@ -373,8 +377,8 @@ func getNamespacedPieceID(pieceID, namespace []byte) (string, error) {
 	return base58.Encode(h), nil
 }
 
-func getNamespace(signedMessage *pb.SignedMessage) []byte {
-	return signedMessage.GetData()
+func getNamespace(satelliteID storj.NodeID) []byte {
+	return satelliteID.Bytes()
 }
 
 func (s *Server) getDashboardData(ctx context.Context) (*pb.DashboardStats, error) {

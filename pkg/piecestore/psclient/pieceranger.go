@@ -64,7 +64,7 @@ func (r *pieceRanger) Range(ctx context.Context, offset, length int64) (io.ReadC
 	}
 
 	// send piece data
-	if err := r.stream.Send(&pb.PieceRetrieval{PieceData: &pb.PieceRetrieval_PieceData{Id: r.id.String(), PieceSize: length, Offset: offset}, Authorization: r.authorization}); err != nil {
+	if err := r.stream.Send(&pb.PieceRetrieval{PieceData: &pb.PieceRetrieval_PieceData{Id: r.id.String(), PieceSize: length, Offset: offset}}); err != nil {
 		return nil, err
 	}
 
